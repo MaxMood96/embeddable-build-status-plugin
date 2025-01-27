@@ -1,14 +1,10 @@
-INPUT {
-    border: none;
-    font-size: -2;
+h2 {
+    margin-bottom: 1px;
+    margin-top: 1em;
 }
-INPUT.select-all {
-    width:100%;
-    font-family: Console, "Courier New", Courier, monospace;
-}
-IMG#badge {
-    margin-left:2em;
-}
-h3 {
+
+h3.help-format {
     border-bottom: 1px solid grey;
+    margin-bottom: 1px;
+    margin-top: 1em;
 }
