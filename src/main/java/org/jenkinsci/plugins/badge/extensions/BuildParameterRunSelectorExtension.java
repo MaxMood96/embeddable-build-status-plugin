@@ -17,9 +17,8 @@ import org.jenkinsci.plugins.badge.extensionpoints.InternalRunSelectorExtensionP
 @SuppressWarnings("rawtypes")
 @Extension
 public class BuildParameterRunSelectorExtension implements InternalRunSelectorExtensionPoint {
-    private static Pattern outerSelector =
-            Pattern.compile(
-                    "(last|first)(Failed|Successful|Unsuccessful|Stable|Unstable|Completed){0,1}(:\\$\\{([^\\{\\}\\s]+)\\}){0,1}");
+    private static Pattern outerSelector = Pattern.compile(
+            "(last|first)(Failed|Successful|Unsuccessful|Stable|Unstable|Completed){0,1}(:\\$\\{([^\\{\\}\\s]+)\\}){0,1}");
     private static Pattern paramsPattern = Pattern.compile("params\\.([^=]+)=(.*)");
 
     private Boolean matchRule(Job job, Run run, String rule) {
@@ -53,18 +52,27 @@ public class BuildParameterRunSelectorExtension implements InternalRunSelectorEx
                 run = findSpecific(job, job.getFirstBuild(), what, specific);
             } else {
                 if (specific != null) {
-                    if (specific.equals("Failed")) {
-                        run = job.getLastFailedBuild();
-                    } else if (specific.equals("Successful")) {
-                        run = job.getLastSuccessfulBuild();
-                    } else if (specific.equals("Unsuccessful")) {
-                        run = job.getLastUnsuccessfulBuild();
-                    } else if (specific.equals("Stable")) {
-                        run = job.getLastStableBuild();
-                    } else if (specific.equals("Unstable")) {
-                        run = job.getLastUnstableBuild();
-                    } else if (specific.equals("Completed")) {
-                        run = job.getLastCompletedBuild();
+                    switch (specific) {
+                        case "Failed":
+                            run = job.getLastFailedBuild();
+                            break;
+                        case "Successful":
+                            run = job.getLastSuccessfulBuild();
+                            break;
+                        case "Unsuccessful":
+                            run = job.getLastUnsuccessfulBuild();
+                            break;
+                        case "Stable":
+                            run = job.getLastStableBuild();
+                            break;
+                        case "Unstable":
+                            run = job.getLastUnstableBuild();
+                            break;
+                        case "Completed":
+                            run = job.getLastCompletedBuild();
+                            break;
+                        default:
+                            break;
                     }
                 }
 
@@ -81,34 +89,23 @@ public class BuildParameterRunSelectorExtension implements InternalRunSelectorEx
                 }
 
                 if (run != null) {
-                    Boolean doBreak = (specific == null);
+                    boolean doBreak = specific == null;
                     if (!doBreak) {
                         Result result = run.getResult();
                         if (result != null) {
-                            Boolean isCompleted = result.isCompleteBuild();
-                            Boolean isSuccessful = result == Result.SUCCESS;
-                            Boolean isFailed = result == Result.FAILURE;
-                            Boolean isUnstable = result == Result.UNSTABLE;
-                            Boolean isUnsuccessful = !isSuccessful;
-                            Boolean isStable = isSuccessful;
+                            boolean isCompleted = result.isCompleteBuild();
+                            boolean isSuccessful = result == Result.SUCCESS;
+                            boolean isFailed = result == Result.FAILURE;
+                            boolean isUnstable = result == Result.UNSTABLE;
+                            boolean isUnsuccessful = !isSuccessful;
+                            boolean isStable = isSuccessful;
 
-                            doBreak =
-                                    (specific.equals("Completed") && isCompleted)
-                                            || (specific.equals("Successful")
-                                                    && isCompleted
-                                                    && isSuccessful)
-                                            || (specific.equals("Failed")
-                                                    && isCompleted
-                                                    && isFailed)
-                                            || (specific.equals("Unstable")
-                                                    && isCompleted
-                                                    && isUnstable)
-                                            || (specific.equals("Unsuccessful")
-                                                    && isCompleted
-                                                    && isUnsuccessful)
-                                            || (specific.equals("Stable")
-                                                    && isCompleted
-                                                    && isStable);
+                            doBreak = (specific.equals("Completed") && isCompleted)
+                                    || (specific.equals("Successful") && isCompleted && isSuccessful)
+                                    || (specific.equals("Failed") && isCompleted && isFailed)
+                                    || (specific.equals("Unstable") && isCompleted && isUnstable)
+                                    || (specific.equals("Unsuccessful") && isCompleted && isUnsuccessful)
+                                    || (specific.equals("Stable") && isCompleted && isStable);
                         }
                     }
 
@@ -121,6 +118,7 @@ public class BuildParameterRunSelectorExtension implements InternalRunSelectorEx
         return run;
     }
 
+    @Override
     public Run select(Job job, String runId, Run run) {
         Matcher matcher = outerSelector.matcher(runId);
         while (matcher.find()) {
