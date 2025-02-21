@@ -25,7 +25,8 @@ import org.kohsuke.stapler.DataBoundSetter;
 
 public class AddEmbeddableBadgeConfigStep extends Step {
 
-    private final EmbeddableBadgeConfig badgeConfig;
+    /* Package protected for automated tests */
+    final EmbeddableBadgeConfig badgeConfig;
 
     @DataBoundConstructor
     public AddEmbeddableBadgeConfigStep(
@@ -108,7 +109,7 @@ public class AddEmbeddableBadgeConfigStep extends Step {
 
         @Override
         public Set<Class<?>> getRequiredContext() {
-            Set<Class<?>> set = new HashSet<Class<?>>();
+            Set<Class<?>> set = new HashSet<>();
             set.add(TaskListener.class);
             return set;
         }
@@ -116,9 +117,7 @@ public class AddEmbeddableBadgeConfigStep extends Step {
 
     public static class Execution extends SynchronousStepExecution<EmbeddableBadgeConfig> {
 
-        @SuppressFBWarnings(
-                value = "SE_TRANSIENT_FIELD_NOT_RESTORED",
-                justification = "Only used when starting.")
+        @SuppressFBWarnings(value = "SE_TRANSIENT_FIELD_NOT_RESTORED", justification = "Only used when starting.")
         private final transient EmbeddableBadgeConfig badgeConfig;
 
         Execution(EmbeddableBadgeConfig badgeConfig, StepContext context) {

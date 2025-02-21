@@ -6,6 +6,7 @@ import static org.hamcrest.CoreMatchers.not;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 
+import hudson.Functions;
 import hudson.model.FreeStyleProject;
 import hudson.model.Run;
 import hudson.tasks.BatchFile;
@@ -23,16 +24,18 @@ public class PublicBuildStatusActionTest {
 
     // JenkinsRule startup cost is high on Windows
     // Use a ClassRule to create one JenkinsRule used by all tests
-    @ClassRule public static JenkinsRule j = new JenkinsRule();
+    @ClassRule
+    public static JenkinsRule j = new JenkinsRule();
 
-    @Rule public TestName name = new TestName();
+    @Rule
+    public TestName name = new TestName();
 
     private static final String SUCCESS_MARKER = "fill=\"#44cc11\"";
     private static final String NOT_RUN_MARKER = "fill=\"#9f9f9f\"";
+    private static final String PASSING_MARKER = ">passing<";
 
     private FreeStyleProject job;
     private String jobStatusUrl;
-    private JenkinsRule.WebClient webClient;
 
     @Before
     public void createJob() throws IOException {
@@ -43,26 +46,23 @@ public class PublicBuildStatusActionTest {
         // Assure the job can pass on Windows and Unix
         job.getBuildersList()
                 .add(
-                        isWindows()
+                        Functions.isWindows()
                                 ? new BatchFile("echo hello from a batch file")
                                 : new Shell("echo hello from a shell"));
         String statusUrl = j.getURL().toString() + "buildStatus/icon";
         jobStatusUrl = statusUrl + "?job=" + job.getName();
     }
 
-    @Before
-    public void createWebClient() {
-        webClient = j.createWebClient();
-    }
-
     @Test
     public void testDoIconJobBefore() throws Exception {
         // Check job status icon is "not run" before job runs
-        JenkinsRule.JSONWebResponse json = webClient.getJSON(jobStatusUrl);
-        String result = json.getContentAsString();
-        assertThat(result, containsString("<svg "));
-        assertThat(result, not(containsString(SUCCESS_MARKER)));
-        assertThat(result, containsString(NOT_RUN_MARKER));
+        try (JenkinsRule.WebClient webClient = j.createWebClient()) {
+            JenkinsRule.JSONWebResponse json = webClient.getJSON(jobStatusUrl);
+            String result = json.getContentAsString();
+            assertThat(result, containsString("<svg "));
+            assertThat(result, not(containsString(SUCCESS_MARKER)));
+            assertThat(result, containsString(NOT_RUN_MARKER));
+        }
     }
 
     @Test
@@ -70,11 +70,13 @@ public class PublicBuildStatusActionTest {
         String buildStatusUrl = jobStatusUrl + "&build=123";
 
         // Check build status icon is "not run" before job runs
-        JenkinsRule.JSONWebResponse json = webClient.getJSON(buildStatusUrl);
-        String result = json.getContentAsString();
-        assertThat(result, containsString("<svg "));
-        assertThat(result, not(containsString(SUCCESS_MARKER)));
-        assertThat(result, containsString(NOT_RUN_MARKER));
+        try (JenkinsRule.WebClient webClient = j.createWebClient()) {
+            JenkinsRule.JSONWebResponse json = webClient.getJSON(buildStatusUrl);
+            String result = json.getContentAsString();
+            assertThat(result, containsString("<svg "));
+            assertThat(result, not(containsString(SUCCESS_MARKER)));
+            assertThat(result, containsString(NOT_RUN_MARKER));
+        }
     }
 
     @Test
@@ -84,11 +86,13 @@ public class PublicBuildStatusActionTest {
         j.assertBuildStatusSuccess(build);
 
         // Check job status icon is correct after job runs successfully
-        JenkinsRule.JSONWebResponse json = webClient.getJSON(jobStatusUrl);
-        String result = json.getContentAsString();
-        assertThat(result, containsString("<svg "));
-        assertThat(result, containsString(SUCCESS_MARKER));
-        assertThat(result, not(containsString(NOT_RUN_MARKER)));
+        try (JenkinsRule.WebClient webClient = j.createWebClient()) {
+            JenkinsRule.JSONWebResponse json = webClient.getJSON(jobStatusUrl);
+            String result = json.getContentAsString();
+            assertThat(result, containsString("<svg "));
+            assertThat(result, containsString(SUCCESS_MARKER));
+            assertThat(result, not(containsString(NOT_RUN_MARKER)));
+        }
     }
 
     @Test
@@ -99,11 +103,13 @@ public class PublicBuildStatusActionTest {
 
         // Check build status icon is correct after job runs successfully
         String buildStatusUrl = jobStatusUrl + "&build=" + build.getNumber();
-        JenkinsRule.JSONWebResponse json = webClient.getJSON(buildStatusUrl);
-        String result = json.getContentAsString();
-        assertThat(result, containsString("<svg "));
-        assertThat(result, containsString(SUCCESS_MARKER));
-        assertThat(result, not(containsString(NOT_RUN_MARKER)));
+        try (JenkinsRule.WebClient webClient = j.createWebClient()) {
+            JenkinsRule.JSONWebResponse json = webClient.getJSON(buildStatusUrl);
+            String result = json.getContentAsString();
+            assertThat(result, containsString("<svg "));
+            assertThat(result, containsString(SUCCESS_MARKER));
+            assertThat(result, not(containsString(NOT_RUN_MARKER)));
+        }
     }
 
     @Test
@@ -126,5 +132,84 @@ public class PublicBuildStatusActionTest {
 
     private boolean isWindows() {
         return File.pathSeparatorChar == ';';
+    }
+
+    @Test
+    public void doText_shouldReturnMissingQueryParameterWhenJobIsNull() throws IOException {
+        try (JenkinsRule.WebClient webClient = j.createWebClient()) {
+            String url = j.getURL().toString() + "buildStatus/text";
+            JenkinsRule.JSONWebResponse json = webClient.getJSON(url);
+            String result = json.getContentAsString();
+            assertThat(result, is("Missing query parameter: job"));
+        }
+    }
+
+    @Test
+    public void doText_shouldReturnProjectIconWhenJobHasNotRun() throws IOException {
+        PublicBuildStatusAction action = new PublicBuildStatusAction();
+        String result = action.doText(null, null, job.getName(), null);
+        assertThat(result, is(job.getIconColor().getDescription()));
+        assertThat(result, is("Not built"));
+    }
+
+    @Test
+    public void doText_shouldReturnProjectIconColorDescription() throws Exception {
+        Run<?, ?> build = job.scheduleBuild2(0).get();
+        j.assertBuildStatusSuccess(build);
+        try (JenkinsRule.WebClient webClient = j.createWebClient()) {
+            String url = j.getURL().toString() + "buildStatus/text?job=" + job.getName();
+            JenkinsRule.JSONWebResponse json = webClient.getJSON(url);
+            String result = json.getContentAsString();
+            assertThat(result, is(build.getIconColor().getDescription()));
+            assertThat(result, is("Success"));
+        }
+    }
+
+    @Test
+    public void doIconShouldReturnCorrectResponseForNullJob() throws Exception {
+        try (JenkinsRule.WebClient webClient = j.createWebClient()) {
+            String url = j.getURL().toString() + "buildStatus/icon";
+            JenkinsRule.JSONWebResponse json = webClient.getJSON(url);
+            String result = json.getContentAsString();
+            // Surprising that build passing is reported without a job argument, but
+            // that is the result with the current release
+            assertThat(result, containsString(PASSING_MARKER));
+        }
+    }
+
+    @Test
+    public void doIconDotSvgShouldReturnCorrectResponseForNullJob() throws Exception {
+        try (JenkinsRule.WebClient webClient = j.createWebClient()) {
+            String url = j.getURL().toString() + "buildStatus/icon.svg";
+            JenkinsRule.JSONWebResponse json = webClient.getJSON(url);
+            String result = json.getContentAsString();
+            // Surprising that build passing is reported without a job argument, but
+            // that is the result with the current release
+            assertThat(result, containsString(PASSING_MARKER));
+        }
+    }
+
+    @Test
+    public void doIconShouldReturnCorrectResponseForValidJob() throws Exception {
+        Run<?, ?> build = job.scheduleBuild2(0).get();
+        j.assertBuildStatusSuccess(build);
+        try (JenkinsRule.WebClient webClient = j.createWebClient()) {
+            String url = j.getURL().toString() + "buildStatus/icon?job=" + job.getName();
+            JenkinsRule.JSONWebResponse json = webClient.getJSON(url);
+            String result = json.getContentAsString();
+            assertThat(result, containsString(PASSING_MARKER));
+        }
+    }
+
+    @Test
+    public void doIconDotSvgShouldReturnCorrectResponseForValidJob() throws Exception {
+        Run<?, ?> build = job.scheduleBuild2(0).get();
+        j.assertBuildStatusSuccess(build);
+        try (JenkinsRule.WebClient webClient = j.createWebClient()) {
+            String url = j.getURL().toString() + "buildStatus/icon.svg?job=" + job.getName();
+            JenkinsRule.JSONWebResponse json = webClient.getJSON(url);
+            String result = json.getContentAsString();
+            assertThat(result, containsString(PASSING_MARKER));
+        }
     }
 }
