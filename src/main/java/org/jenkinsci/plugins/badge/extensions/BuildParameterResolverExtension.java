@@ -17,12 +17,11 @@ import org.jenkinsci.plugins.badge.extensionpoints.ParameterResolverExtensionPoi
 @Extension
 public class BuildParameterResolverExtension implements ParameterResolverExtensionPoint {
     private static Pattern pattern = Pattern.compile("params\\.([^\\{\\}\\s]+)");
-    private static Pattern defaultPattern =
-            Pattern.compile("params\\.([^\\{\\}\\s\\|]+)\\|([^\\}\\|]+)");
+    private static Pattern defaultPattern = Pattern.compile("params\\.([^\\{\\}\\s\\|]+)\\|([^\\}\\|]+)");
 
+    @Override
     public String resolve(Actionable actionable, String parameter) {
-        if (actionable instanceof Run) {
-            Run<?, ?> run = (Run<?, ?>) actionable;
+        if (actionable instanceof Run<?, ?> run) {
 
             ParametersAction params = run.getAction(ParametersAction.class);
             if (params != null) {
@@ -35,12 +34,10 @@ public class BuildParameterResolverExtension implements ParameterResolverExtensi
                     if (val != null) {
                         // replace ${params.<ParamName>|<DefaultValue>} with the value
                         String valueStr = val.toString();
-                        parameter =
-                                matcher.replaceAll(
-                                        valueStr.replace("\\", "\\\\")
-                                                .replace("$", "\\$")
-                                                .replace("{", "\\{")
-                                                .replace("}", "\\}"));
+                        parameter = matcher.replaceAll(valueStr.replace("\\", "\\\\")
+                                .replace("$", "\\$")
+                                .replace("{", "\\{")
+                                .replace("}", "\\}"));
                         matcher = defaultPattern.matcher(parameter);
                     } else {
                         // replace ${params.<ParamName>|<DefaultValue>} with the <DefaultValue>
@@ -58,12 +55,10 @@ public class BuildParameterResolverExtension implements ParameterResolverExtensi
                     if (val != null) {
                         // replace ${params.<ParamName>} with the value
                         String valueStr = val.toString();
-                        parameter =
-                                matcher.replaceFirst(
-                                        valueStr.replace("\\", "\\\\")
-                                                .replace("$", "\\$")
-                                                .replace("{", "\\{")
-                                                .replace("}", "\\}"));
+                        parameter = matcher.replaceFirst(valueStr.replace("\\", "\\\\")
+                                .replace("$", "\\$")
+                                .replace("{", "\\{")
+                                .replace("}", "\\}"));
                         matcher = pattern.matcher(parameter);
                     } else {
                         // replace ${params.<ParamName>} with empty string
@@ -72,8 +67,8 @@ public class BuildParameterResolverExtension implements ParameterResolverExtensi
                     }
                 }
             }
-        } else if (actionable instanceof Job<?, ?>) {
-            parameter = resolve(((Job<?, ?>) actionable).getLastBuild(), parameter);
+        } else if (actionable instanceof Job<?, ?> job) {
+            parameter = resolve(job.getLastBuild(), parameter);
         }
         return parameter;
     }
