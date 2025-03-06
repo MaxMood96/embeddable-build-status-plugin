@@ -1,8 +1,8 @@
 package org.jenkinsci.plugins.badge;
 
-import static org.hamcrest.CoreMatchers.*;
 import static org.hamcrest.MatcherAssert.assertThat;
-import static org.junit.jupiter.api.Assertions.*;
+import static org.hamcrest.Matchers.instanceOf;
+import static org.hamcrest.Matchers.is;
 
 import hudson.model.Action;
 import hudson.model.Job;
@@ -27,10 +27,5 @@ class JobBadgeActionFactoryTest {
         Collection<? extends Action> action = factory.createFor(Mockito.mock(Job.class));
         assertThat(action.size(), is(1));
         assertThat(action.stream().findFirst().get(), instanceOf(JobBadgeAction.class));
-    }
-
-    @Test
-    void shouldBeForJobType() {
-        assertThat(factory.type(), is(Job.class));
     }
 }

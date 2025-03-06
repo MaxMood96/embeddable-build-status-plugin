@@ -1,83 +1,89 @@
 package org.jenkinsci.plugins.badge;
 
-import static org.hamcrest.CoreMatchers.*;
 import static org.hamcrest.MatcherAssert.assertThat;
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.is;
+import static org.hamcrest.Matchers.not;
 
 import hudson.model.BallColor;
 import java.io.IOException;
 import java.util.Random;
-import org.junit.ClassRule;
-import org.junit.Rule;
-import org.junit.Test;
-import org.junit.rules.TestName;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
 import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 
-public class ImageResolverTest {
+@WithJenkins
+class ImageResolverTest {
 
-    @ClassRule public static JenkinsRule jenkinsRule = new JenkinsRule();
+    private static JenkinsRule jenkinsRule;
+    private String testName;
 
-    @Rule public TestName testName = new TestName();
+    @BeforeAll
+    static void beforeAll(JenkinsRule rule) {
+        jenkinsRule = rule;
+    }
 
-    @Test
-    public void TestGetDefault32x32Ball() throws Exception {
-        JenkinsRule.WebClient wc = jenkinsRule.createWebClient();
-        String style = "ball"; // should give default due to invalid size in the style
-        String subject = getSubject();
-        String status = getStatus();
-        String colorName = null;
-        BallColor ball = BallColor.BLUE;
-        StatusImage image =
-                wc.executeOnServer(
-                        () -> {
-                            ImageResolver imageResolver = new ImageResolver();
-                            return imageResolver.getImage(
-                                    ball, style, subject, status, colorName, null, null);
-                        });
-        assertThat(image.getEtag(), containsString(subject));
-        assertThat(image.getEtag(), containsString(status));
-        assertThat(image.getEtag(), containsString("null"));
+    @BeforeEach
+    void setTestName(TestInfo info) {
+        testName = info.getTestMethod().orElseThrow().getName();
     }
 
     @Test
-    public void TestGetNonDefaultBall() throws Exception {
-        JenkinsRule.WebClient wc = jenkinsRule.createWebClient();
-        String sizeHint = "16x16";
-        String style = "ball-" + sizeHint; // should give url
-        String subject = getSubject();
-        String status = getStatus();
-        BallColor ball = BallColor.RED;
-        String colorName = ball.toString();
-        StatusImage image =
-                wc.executeOnServer(
-                        () -> {
-                            ImageResolver imageResolver = new ImageResolver();
-                            return imageResolver.getImage(
-                                    ball, style, subject, status, colorName, null, null);
-                        });
-        assertThat(image.getEtag(), not(containsString(subject)));
-        assertThat(image.getEtag(), not(containsString(status)));
-        assertThat(
-                image.getEtag(), containsString("images/" + sizeHint + "/" + colorName + ".png"));
+    void TestGetDefault32x32Ball() throws Exception {
+        try (JenkinsRule.WebClient wc = jenkinsRule.createWebClient()) {
+            String style = "ball"; // should give default due to invalid size in the style
+            String subject = getSubject();
+            String status = getStatus();
+            String colorName = null;
+            BallColor ball = BallColor.BLUE;
+            StatusImage image = wc.executeOnServer(() -> {
+                ImageResolver imageResolver = new ImageResolver();
+                return imageResolver.getImage(ball, style, subject, status, colorName, null, null);
+            });
+            assertThat(image.getEtag(), containsString(subject));
+            assertThat(image.getEtag(), containsString(status));
+            assertThat(image.getEtag(), containsString("null"));
+        }
     }
 
     @Test
-    public void testShouldReturnEmpty() throws Exception {
-        JenkinsRule.WebClient wc = jenkinsRule.createWebClient();
-        String style = "ball-42x45"; // invalid size hint will return default empty image
-        String subject = getSubject();
-        String status = getStatus();
-        String colorName = null;
-        BallColor ball = BallColor.BLUE;
-        StatusImage image =
-                wc.executeOnServer(
-                        () -> {
-                            ImageResolver imageResolver = new ImageResolver();
-                            return imageResolver.getImage(
-                                    ball, style, subject, status, colorName, null, null);
-                        });
-        assertThat(image.getEtag(), not(containsString(subject)));
-        assertThat(image.getEtag(), not(containsString(status)));
-        assertThat(image.getEtag(), containsString("empty"));
+    void TestGetNonDefaultBall() throws Exception {
+        try (JenkinsRule.WebClient wc = jenkinsRule.createWebClient()) {
+            String sizeHint = "16x16";
+            String style = "ball-" + sizeHint; // should give url
+            String subject = getSubject();
+            String status = getStatus();
+            BallColor ball = BallColor.RED;
+            String colorName = ball.toString();
+            StatusImage image = wc.executeOnServer(() -> {
+                ImageResolver imageResolver = new ImageResolver();
+                return imageResolver.getImage(ball, style, subject, status, colorName, null, null);
+            });
+            assertThat(image.getEtag(), not(containsString(subject)));
+            assertThat(image.getEtag(), not(containsString(status)));
+            assertThat(image.getEtag(), containsString("images/" + sizeHint + "/" + colorName + ".png"));
+        }
+    }
+
+    @Test
+    void testShouldReturnEmpty() throws Exception {
+        try (JenkinsRule.WebClient wc = jenkinsRule.createWebClient()) {
+            String style = "ball-42x45"; // invalid size hint will return default empty image
+            String subject = getSubject();
+            String status = getStatus();
+            String colorName = null;
+            BallColor ball = BallColor.BLUE;
+            StatusImage image = wc.executeOnServer(() -> {
+                ImageResolver imageResolver = new ImageResolver();
+                return imageResolver.getImage(ball, style, subject, status, colorName, null, null);
+            });
+            assertThat(image.getEtag(), not(containsString(subject)));
+            assertThat(image.getEtag(), not(containsString(status)));
+            assertThat(image.getEtag(), containsString("empty"));
+        }
     }
 
     private final Random random = new Random();
@@ -87,29 +93,27 @@ public class ImageResolverTest {
     }
 
     private String getSubject() {
-        return "subject-is-" + testName.getMethodName();
+        return "subject-is-" + testName;
     }
 
     private String getStatus() {
-        return "status-is-" + testName.getMethodName();
+        return "status-is-" + testName;
     }
 
-    private BallColor[] jobStatusColors = {
+    private final BallColor[] jobStatusColors = {
         BallColor.ABORTED_ANIME, BallColor.DISABLED_ANIME, BallColor.NOTBUILT_ANIME,
     };
 
     private BallColor getJobStatusColor() {
-        return jobStatusColors[
-                random.nextInt(jobStatusColors.length)]; // A job status animated color
+        return jobStatusColors[random.nextInt(jobStatusColors.length)]; // A job status animated color
     }
 
-    private BallColor[] animatedColors = {
+    private final BallColor[] animatedColors = {
         BallColor.ABORTED_ANIME, BallColor.DISABLED_ANIME, BallColor.NOTBUILT_ANIME,
     };
 
     private BallColor getAnimatedColor() {
-        return animatedColors[
-                random.nextInt(animatedColors.length)]; // An animated color with specific meaning
+        return animatedColors[random.nextInt(animatedColors.length)]; // An animated color with specific meaning
     }
 
     /* Any one of these colors will result in a lightgrey colored image */
@@ -123,12 +127,11 @@ public class ImageResolverTest {
     };
 
     private BallColor getLightGreyBallColor() {
-        return lightGreyEquivalents[
-                random.nextInt(lightGreyEquivalents.length)]; // A light grey equivalent ball color
+        return lightGreyEquivalents[random.nextInt(lightGreyEquivalents.length)]; // A light grey equivalent ball color
     }
 
     @Test
-    public void testGetImage() throws IOException { // Without a style
+    void testGetImage() throws IOException { // Without a style
         String style = getInvalidStyle();
         BallColor color = BallColor.BLUE; // Not an animated color
         String subject = getSubject();
@@ -138,8 +141,7 @@ public class ImageResolverTest {
         String link = null; // "https://www.example.com/my-link";
         ImageResolver imageResolver = new ImageResolver();
         StatusImage image =
-                imageResolver.getImage(
-                        color, style, subject, status, colorName, animatedOverlayColor, link);
+                imageResolver.getImage(color, style, subject, status, colorName, animatedOverlayColor, link);
         assertThat(image.getEtag(), containsString(subject));
         assertThat(image.getEtag(), containsString(status));
         assertThat(image.getEtag(), containsString(colorName));
@@ -148,7 +150,7 @@ public class ImageResolverTest {
     }
 
     @Test
-    public void testGetImageAnimatedJobStatusColor() throws IOException {
+    void testGetImageAnimatedJobStatusColor() throws IOException {
         String style = getInvalidStyle();
         BallColor color = getAnimatedColor();
         String subject = getSubject();
@@ -158,8 +160,7 @@ public class ImageResolverTest {
         String link = null;
         ImageResolver imageResolver = new ImageResolver();
         StatusImage image =
-                imageResolver.getImage(
-                        color, style, subject, status, colorName, animatedOverlayColor, link);
+                imageResolver.getImage(color, style, subject, status, colorName, animatedOverlayColor, link);
         assertThat(image.getEtag(), containsString(subject));
         assertThat(image.getEtag(), containsString(status));
         assertThat(image.getEtag(), containsString("lightgrey")); // Not built color
@@ -169,7 +170,7 @@ public class ImageResolverTest {
     }
 
     @Test
-    public void testGetImageLightGrey() throws IOException {
+    void testGetImageLightGrey() throws IOException {
         String style = getInvalidStyle();
         BallColor color = getLightGreyBallColor();
         String subject = getSubject();
@@ -179,8 +180,7 @@ public class ImageResolverTest {
         String link = null; // "https://www.example.com/my-link";
         ImageResolver imageResolver = new ImageResolver();
         StatusImage image =
-                imageResolver.getImage(
-                        color, style, subject, status, colorName, animatedOverlayColor, link);
+                imageResolver.getImage(color, style, subject, status, colorName, animatedOverlayColor, link);
         assertThat(image.getEtag(), containsString(subject));
         assertThat(image.getEtag(), containsString(status));
         assertThat(image.getEtag(), containsString("lightgrey")); // Not built color
